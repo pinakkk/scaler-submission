@@ -68,6 +68,14 @@ class Settings(BaseSettings):
     # --- Cache (§9). Empty => MemoryCache; set => RedisCache (phase 2). ------
     REDIS_URL: str | None = None
 
+    # --- TURN (§5.5) --------------------------------------------------------
+    # Credentials are returned by POST /join, never baked into the client
+    # bundle. All three must be set for a TURN entry to be emitted; unset means
+    # STUN-only, which fails behind symmetric NAT.
+    TURN_URLS: str = ""
+    TURN_USERNAME: str = ""
+    TURN_CREDENTIAL: str = ""
+
     # --- API surface --------------------------------------------------------
     API_V1_PREFIX: str = "/api/v1"
     PROJECT_NAME: str = "Zoom Clone API"

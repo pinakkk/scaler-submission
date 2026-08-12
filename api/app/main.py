@@ -15,15 +15,18 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
-from slowapi.util import get_remote_address
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.config import settings
 from app.database import init_db, verify_pragmas
+from app.rate_limit import limiter
+from app.routers import auth as auth_router
 from app.routers import health as health_router
+from app.routers import meetings as meetings_router
+from app.routers import participants as participants_router
+from app.routers import users as users_router
 from app.services.errors import AppError
 
 # Attach to uvicorn's handlers so app logs actually surface under `uvicorn`
@@ -35,11 +38,6 @@ if _uvicorn_logger.handlers:
     logger.setLevel(_uvicorn_logger.level or logging.INFO)
 else:
     logging.basicConfig(level=logging.INFO)
-
-# In-memory limiter (§4). Single instance / single worker, so in-process
-# counters are authoritative — see §9's note on scaling past one instance.
-limiter = Limiter(key_func=get_remote_address, default_limits=[])
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -73,7 +71,21 @@ def create_app() -> FastAPI:
 
     # --- Rate limiting (§4) ------------------------------------------------
     app.state.limiter = limiter
-    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+    # slowapi's stock handler emits {"error": "<string>"}, which collides with
+    # the §4 envelope's {"error": {code, message, details}} — the frontend would
+    # hit a type error parsing a 429. Render our own shape instead.
+    @app.exception_handler(RateLimitExceeded)
+    async def handle_rate_limit(
+        request: Request, exc: RateLimitExceeded
+    ) -> JSONResponse:
+        return error_response(
+            429,
+            "RATE_LIMITED",
+            "Too many requests. Please slow down and try again shortly.",
+            {"limit": str(exc.detail)},
+        )
+
     app.add_middleware(SlowAPIMiddleware)
 
     # --- CORS --------------------------------------------------------------
@@ -120,6 +132,10 @@ def create_app() -> FastAPI:
 
     # --- Routers ------------------------------------------------------------
     app.include_router(health_router.router, prefix=settings.API_V1_PREFIX)
+    app.include_router(auth_router.router, prefix=settings.API_V1_PREFIX)
+    app.include_router(users_router.router, prefix=settings.API_V1_PREFIX)
+    app.include_router(meetings_router.router, prefix=settings.API_V1_PREFIX)
+    app.include_router(participants_router.router, prefix=settings.API_V1_PREFIX)
 
     return app
 
