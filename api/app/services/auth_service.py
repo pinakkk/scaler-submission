@@ -123,6 +123,48 @@ def create_guest(session: Session, display_name: str) -> tuple[User, str, int]:
     return user, token, expires_in
 
 
+def sign_in_dev_user(session: Session, email: str | None) -> tuple[User, str, int]:
+    """Mint a token for an existing non-guest account, no credentials required.
+
+    This exists so the app is usable before P12 wires Google OAuth: the frontend
+    needs *some* way to hold a token for the seeded host. It is gated to
+    non-production in the router — never reachable on a deployed instance.
+
+    Deliberately refuses to create a user. It only signs in an account the seed
+    already produced, so it cannot become a backdoor account factory.
+    """
+    if settings.is_production:
+        raise UnauthorizedError(
+            "Development sign-in is disabled in production.",
+            code="DEV_AUTH_DISABLED",
+            status_code=403,
+        )
+
+    if email:
+        user = session.exec(select(User).where(User.email == email)).first()
+    else:
+        # No email given: sign in the first seeded, non-guest account.
+        user = session.exec(
+            select(User).where(User.is_guest == False).order_by(User.created_at)  # noqa: E712
+        ).first()
+
+    if user is None:
+        raise UnauthorizedError(
+            "No such account. Run `python -m app.seed` first.",
+            code="DEV_USER_NOT_FOUND",
+            status_code=404,
+        )
+    if user.is_guest:
+        raise UnauthorizedError(
+            "Development sign-in is for full accounts only.",
+            code="DEV_AUTH_GUEST",
+            status_code=400,
+        )
+
+    token, expires_in = create_access_token(user)
+    return user, token, expires_in
+
+
 def verify_google_id_token(id_token_str: str) -> dict[str, Any]:
     """Verify a Google ID token against Google's JWKS (§8).
 

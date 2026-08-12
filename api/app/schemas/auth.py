@@ -13,6 +13,15 @@ class GuestAuthRequest(BaseModel):
     )
 
 
+class DevAuthRequest(BaseModel):
+    """Local-only sign-in as an existing seeded account (see `/auth/dev`)."""
+
+    email: str | None = Field(
+        default=None,
+        description="Account to sign in as. Defaults to the first seeded host.",
+    )
+
+
 class GoogleAuthRequest(BaseModel):
     id_token: str = Field(description="Google ID token from the OAuth callback.")
 
