@@ -1,0 +1,30 @@
+# BLUEPRINT §12.3 — Cloudflare Worker config for the OpenNext build.
+#
+# `main` points at src/worker.ts, which wraps the OpenNext handler so a
+# scheduled() cron handler can live alongside the Next.js fetch handler.
+
+name = "zoom-clone"
+main = "src/worker.ts"
+compatibility_date = "2025-03-01"
+compatibility_flags = ["nodejs_compat"]
+
+[assets]
+directory = ".open-next/assets"
+binding = "ASSETS"
+
+# Keep-alive cron, every 5 minutes. Free-tier Fly backends idle out and a cold
+# FastAPI start mid-demo looks like a broken app.
+[triggers]
+crons = ["*/5 * * * *"]
+
+[vars]
+# Non-secret. Point at the deployed FastAPI health endpoint.
+API_HEALTH_URL = "https://<your-api>.fly.dev/api/v1/health"
+
+# Secrets — set with `wrangler secret put <NAME>`, never in this file:
+#   NEXT_PUBLIC_API_BASE_URL
+#   NEXT_PUBLIC_WS_BASE_URL
+#   AUTH_GOOGLE_ID
+#   AUTH_GOOGLE_SECRET
+#   AUTH_SECRET
+#   NEXTAUTH_URL

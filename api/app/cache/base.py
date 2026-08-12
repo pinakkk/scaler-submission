@@ -1,0 +1,13 @@
+"""CacheBackend protocol — the seam that makes Redis a one-line swap (§9)."""
+
+from __future__ import annotations
+
+from typing import Protocol, runtime_checkable
+
+
+@runtime_checkable
+class CacheBackend(Protocol):
+    async def get(self, key: str) -> str | None: ...
+    async def set(self, key: str, value: str, ttl: int | None = None) -> None: ...
+    async def delete(self, key: str) -> None: ...
+    async def incr(self, key: str) -> int: ...

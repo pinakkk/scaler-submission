@@ -1,0 +1,20 @@
+# Virtualenv
+.venv/
+venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+
+# SQLite (including the WAL sidecar files)
+*.db
+*.db-wal
+*.db-shm
+
+# Secrets
+.env

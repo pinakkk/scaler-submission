@@ -1,0 +1,22 @@
+{
+  // Cloudflare Worker entrypoint (src/worker.ts) is checked separately from the
+  // Next.js app: it runs on workerd, not in the browser, so it needs
+  // @cloudflare/workers-types instead of the DOM lib. Mixing the two globally
+  // produces conflicting definitions for fetch/Request/Response.
+  //
+  // Run with: npm run typecheck:worker
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["@cloudflare/workers-types"],
+    "lib": ["esnext"],
+    "noEmit": true,
+    "incremental": false,
+    "plugins": []
+  },
+  "include": [
+    "src/worker.ts",
+    "src/open-next-worker.d.ts",
+    "worker-configuration.d.ts"
+  ],
+  "exclude": ["node_modules"]
+}

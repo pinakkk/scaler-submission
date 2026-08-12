@@ -1,0 +1,40 @@
+# Fly.io deployment (§12.2). Rename `app` before the first `fly deploy`.
+app = "zoom-clone-api"
+primary_region = "sin"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  DATABASE_URL = "sqlite:////data/zoom.db"
+  ENVIRONMENT = "production"
+  PORT = "8080"
+  # Override with the real Workers origin once the frontend is deployed.
+  CORS_ORIGINS = "http://localhost:3000"
+
+# Secrets (never in this file): fly secrets set SECRET_KEY=... GOOGLE_CLIENT_ID=...
+
+[[mounts]]
+  source = "zoom_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = false
+  # Critical: WebSocket signaling connections die on scale-to-zero (§12.2).
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "10s"
+    method = "GET"
+    path = "/api/v1/health"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
+  cpus = 1
+  cpu_kind = "shared"

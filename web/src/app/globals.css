@@ -1,0 +1,209 @@
+@import "tailwindcss";
+
+/* ============================================================================
+   Zoom Clone — Design System (BLUEPRINT §2)
+   ----------------------------------------------------------------------------
+   Tailwind v4 is CSS-first: there is NO tailwind.config.ts. Colors declared in
+   the `@theme` block below become real utilities, e.g.
+     --color-zm-blue-600  ->  bg-zm-blue-600 / text-zm-blue-600 / border-zm-blue-600
+   Non-color design values (radii, shadows, layout metrics) live in :root as
+   plain custom properties and are consumed via arbitrary values, e.g.
+     rounded-[var(--r-lg)]   shadow-[var(--shadow-modal)]   w-[var(--rail-w)]
+   ========================================================================== */
+
+@theme {
+  /* --- §2.1 App Shell Palette ------------------------------------------- */
+  --color-zm-app-chrome: #e4e7ea;
+  --color-zm-app-card: #ffffff;
+  --color-zm-app-titlebar: #000000;
+  --color-zm-rail-active: #ffffff;
+  --color-zm-rail-hover: rgba(0, 0, 0, 0.05);
+  --color-zm-search-bg: #d3d8dd;
+  --color-zm-search-text: #5b6470;
+
+  /* --- §2.2 Brand / Primary --------------------------------------------- */
+  --color-zm-blue-600: #0b5cff;
+  --color-zm-blue-700: #0a4fd6;
+  --color-zm-blue-800: #0842b0;
+  --color-zm-blue-500: #2d7cff;
+  --color-zm-blue-100: #e5efff;
+  --color-zm-blue-50: #f0f5ff;
+  --color-zm-orange-500: #f5721f;
+  --color-zm-orange-600: #dc630f;
+
+  /* --- §2.3 Marketing Hero Gradient ------------------------------------- */
+  --color-zm-hero-from: #0a1a5c;
+  --color-zm-hero-via: #1b3fbf;
+  --color-zm-hero-to: #4b6ce8;
+
+  /* --- §2.4 Neutrals & Semantic ----------------------------------------- */
+  --color-zm-ink-900: #131619;
+  --color-zm-ink-700: #232333;
+  --color-zm-ink-500: #5b5b66;
+  --color-zm-ink-400: #747487;
+  --color-zm-line-200: #e6e6e6;
+  --color-zm-surface-100: #f7f9fa;
+  --color-zm-warn-bg: #fff8e6;
+  --color-zm-warn-border: #f5d57f;
+  --color-zm-warn-icon: #b7791f;
+  --color-zm-success: #22b573;
+  --color-zm-danger: #e02d2d;
+  --color-zm-danger-strong: #d93025;
+
+  /* --- §2.5 Meeting Room & Dark Menus ----------------------------------- */
+  --color-zm-room-bg: #1a1a1a;
+  --color-zm-room-topbar: #000000;
+  --color-zm-room-bar: #141414;
+  --color-zm-room-tile: #1f1f23;
+  --color-zm-room-toast: rgba(28, 28, 30, 0.92);
+  --color-zm-room-text: #f5f5f7;
+  --color-zm-room-active: #22b573;
+  --color-zm-menu-bg: #232323;
+  --color-zm-menu-border: #3a3a3a;
+  --color-zm-menu-hover: rgba(255, 255, 255, 0.08);
+  --color-zm-menu-selected: #2d7cff;
+
+  /* --- §2.6 Settings Modal (dark + light variants) ---------------------- */
+  --color-zm-modal-dark-bg: #242424;
+  --color-zm-modal-dark-nav: #1c1c1c;
+  --color-zm-modal-dark-border: #3a3a3a;
+  --color-zm-modal-light-bg: #ffffff;
+  --color-zm-modal-light-nav: #ffffff;
+
+  /* Settings nav icon colors (§2.6) */
+  --color-zm-icon-general: #8e8e93;
+  --color-zm-icon-video: #8ed08e;
+  --color-zm-icon-audio: #7ed8c3;
+  --color-zm-icon-background: #7cd4e8;
+  --color-zm-icon-statistics: #c4a5e8;
+  --color-zm-icon-chat: #6bc96b;
+  --color-zm-icon-about: #5b9bd5;
+
+  /* Theme swatches, Settings -> General (§2.6) */
+  --color-zm-theme-classic-dark: #1a1a1a;
+  --color-zm-theme-classic-light: #ffffff;
+  --color-zm-theme-bloom: #2d5ff7;
+  --color-zm-theme-agave: #4a7c6f;
+  --color-zm-theme-rose: #b5677a;
+
+  /* --- §2.7 Typography --------------------------------------------------- */
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+
+  /* --- §7.4 Responsive breakpoints -------------------------------------- */
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+}
+
+:root {
+  /* --- §2.3 Marketing hero gradient (composed) -------------------------- */
+  --zm-hero-gradient: linear-gradient(
+    180deg,
+    var(--color-zm-hero-from) 0%,
+    var(--color-zm-hero-via) 55%,
+    var(--color-zm-hero-to) 100%
+  );
+
+  /* --- §2.8 Radius scale ------------------------------------------------ */
+  --r-sm: 4px; /* inputs */
+  --r-md: 8px; /* cards, banners, popovers */
+  --r-lg: 12px; /* modals, content card top */
+  --r-xl: 16px; /* settings nav items */
+  --r-full: 9999px; /* pills, avatars, action tiles */
+
+  /* --- §2.8 Elevation --------------------------------------------------- */
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-modal: 0 8px 32px rgba(0, 0, 0, 0.16);
+  --shadow-popover: 0 4px 16px rgba(0, 0, 0, 0.12);
+  --shadow-menu-dark: 0 8px 24px rgba(0, 0, 0, 0.5);
+
+  /* --- §2.8 Spacing grid (4px base) ------------------------------------- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* --- §2.9 Shell Layout Metrics ---------------------------------------- */
+  --zm-titlebar-h: 22px; /* OS title strip, black */
+  --zm-topbar-h: 68px; /* app top bar */
+  --zm-rail-w: 113px; /* left icon rail */
+  --zm-rail-item-h: 72px; /* rail item height */
+  --zm-rail-icon: 22px; /* rail glyph */
+  --zm-rail-label: 11px; /* rail label size */
+  --zm-rail-gap: 8px; /* icon -> label gap */
+  --zm-rail-pill-inset: 8px; /* active pill horizontal inset */
+  --zm-rail-gear: 24px; /* settings gear glyph */
+  --zm-rail-gear-bottom: 32px; /* gear offset from bottom */
+  --zm-search-w: 588px; /* search pill width */
+  --zm-search-h: 36px; /* search pill height */
+  --zm-navarrow-glyph: 20px; /* nav arrow glyph */
+  --zm-navarrow-target: 32px; /* nav arrow tap target */
+  --zm-navarrow-gap: 6px; /* spacing between arrows */
+  --zm-upgrade-h: 36px; /* upgrade button height */
+  --zm-upgrade-px: 20px; /* upgrade horizontal padding */
+  --zm-avatar: 36px; /* avatar size */
+  --zm-presence-dot: 8px; /* green presence dot */
+
+  /* --- §2.10 Home Screen Metrics ---------------------------------------- */
+  --zm-clock-top: 72px; /* clock block from card top */
+  --zm-tile-size: 76px; /* action tile icon square */
+  --zm-tile-radius: 20px; /* action tile corner radius */
+  --zm-tile-glyph: 44px; /* action tile glyph */
+  --zm-tile-gap: 56px; /* between tiles */
+  --zm-tile-label-gap: 16px; /* label below icon */
+  --zm-tile-chevron: 14px; /* new-meeting chevron */
+  --zm-tile-chevron-gap: 6px; /* chevron offset right of label */
+  --zm-banner-max: 810px; /* calendar banner max width */
+  --zm-banner-p: 20px; /* calendar banner padding */
+  --zm-daystrip-max: 810px; /* day strip max width */
+  --zm-daystrip-header-h: 56px; /* day strip header height */
+  --zm-empty-illustration: 120px; /* empty-state illustration */
+  --zm-empty-py: 160px; /* empty-state vertical padding */
+
+  /* --- §2.11 Component sizing ------------------------------------------- */
+  --zm-btn-sm: 32px;
+  --zm-btn-md: 40px;
+  --zm-btn-lg: 48px;
+  --zm-controlbar-h: 72px; /* §6.7 meeting control bar */
+  --zm-drawer-w: 320px; /* participants / chat drawer */
+  --zm-settings-w: 1030px; /* settings modal max width */
+  --zm-settings-h: 810px; /* settings modal max height */
+  --zm-settings-nav-w: 285px; /* settings modal left nav */
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-zm-app-chrome);
+    color: var(--color-zm-ink-900);
+    font-family: var(--font-sans);
+    font-size: 14px; /* §2.7 Body */
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* §7.3 Accessibility — focus rings use --zm-blue-500 at 2px offset */
+  :focus-visible {
+    outline: 2px solid var(--color-zm-blue-500);
+    outline-offset: 2px;
+  }
+}
+
+@layer utilities {
+  /* §2.3 — marketing hero background */
+  .zm-hero-gradient {
+    background-image: var(--zm-hero-gradient);
+  }
+}
