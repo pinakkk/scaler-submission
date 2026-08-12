@@ -225,3 +225,148 @@ export interface HealthResponse {
 export function health(options?: Omit<RequestOptions, "body" | "method">) {
   return api.get<HealthResponse>("/health", options);
 }
+
+/* -------------------------------------------------------------------------- */
+/*  Meeting endpoints (§4, P6+)                                               */
+/* -------------------------------------------------------------------------- */
+
+import type {
+  JoinPayload,
+  JoinResponse,
+  Meeting,
+  MeetingCreatePayload,
+  MeetingListResponse,
+  MeetingLookup,
+  MeetingUpdatePayload,
+} from "@/lib/types";
+
+export type MeetingFilter = "upcoming" | "recent" | "day" | "all";
+
+/**
+ * `GET /meetings` — list the caller's meetings with optional filters.
+ * The `date` param is required when `filter=day` (§6.2 day strip).
+ */
+export function listMeetings(
+  filter: MeetingFilter = "upcoming",
+  options?: { date?: string; limit?: number; cursor?: string } & Omit<RequestOptions, "body" | "method" | "query">,
+) {
+  const { date, limit, cursor, ...rest } = options ?? {};
+  return api.get<MeetingListResponse>("/meetings", {
+    ...rest,
+    query: { filter, date, limit, cursor },
+  });
+}
+
+/**
+ * `POST /meetings` — create an instant or scheduled meeting.
+ * Omit `scheduled_start` for an instant meeting (§3.2).
+ */
+export function createMeeting(
+  payload: MeetingCreatePayload,
+  options?: Omit<RequestOptions, "body" | "method">,
+) {
+  return api.post<Meeting>("/meetings", payload, options);
+}
+
+/**
+ * `GET /meetings/{number}` — full detail, including the passcode and invite
+ * token. Host or an already-joined participant only (§4); anyone else gets
+ * `NOT_A_PARTICIPANT`. The anonymous pre-join probe is `/lookup`, not this.
+ */
+export function getMeeting(
+  meetingNumber: string,
+  options?: Omit<RequestOptions, "body" | "method">,
+) {
+  return api.get<Meeting>(`/meetings/${meetingNumber}`, options);
+}
+
+/**
+ * `PATCH /meetings/{number}` — edit a scheduled meeting (§6.3 Edit, §6.6 edit
+ * mode). Host-only, and the API rejects edits once a meeting has run, so the
+ * Previous tab's history cannot be retconned.
+ */
+export function updateMeeting(
+  meetingNumber: string,
+  payload: MeetingUpdatePayload,
+  options?: Omit<RequestOptions, "body" | "method">,
+) {
+  return api.patch<Meeting>(`/meetings/${meetingNumber}`, payload, options);
+}
+
+/**
+ * `DELETE /meetings/{number}` — cancel (§6.3 Delete).
+ *
+ * A soft transition to `cancelled` (§5.4), not a row deletion, so the meeting
+ * returns as the updated record rather than a 204.
+ */
+export function cancelMeeting(
+  meetingNumber: string,
+  options?: Omit<RequestOptions, "body" | "method">,
+) {
+  return api.delete<Meeting>(`/meetings/${meetingNumber}`, options);
+}
+
+/** `POST /meetings/{number}/start` — `scheduled | ended` -> `live` (§5.4). */
+export function startMeeting(
+  meetingNumber: string,
+  options?: Omit<RequestOptions, "body" | "method">,
+) {
+  return api.post<Meeting>(`/meetings/${meetingNumber}/start`, undefined, options);
+}
+
+/** `POST /meetings/{number}/end` — `live` -> `ended`, evicting everyone (§5.4). */
+export function endMeeting(
+  meetingNumber: string,
+  options?: Omit<RequestOptions, "body" | "method">,
+) {
+  return api.post<Meeting>(`/meetings/${meetingNumber}/end`, undefined, options);
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Join flow (§4, §6.4, §6.5, P8)                                            */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * `GET /meetings/{number}/lookup` — unauthenticated pre-join probe (§4).
+ *
+ * Deliberately takes no token: the join interstitial must render a topic
+ * *before* the visitor has any identity, which is the whole reason `/lookup`
+ * exists separately from `/meetings/{number}`. Rate limited 10/min per IP, so
+ * callers should probe on submit rather than on every keystroke.
+ *
+ * Throws `ApiError` with `MEETING_NOT_FOUND` (404) or `RATE_LIMITED` (429).
+ */
+export function lookupMeeting(
+  meetingNumber: string,
+  options?: Omit<RequestOptions, "body" | "method">,
+) {
+  return api.get<MeetingLookup>(
+    `/meetings/${encodeURIComponent(meetingNumber)}/lookup`,
+    options,
+  );
+}
+
+/**
+ * `POST /meetings/{number}/join` — create the participant row and get a
+ * `session_id` for the WebSocket handshake (§4, §5.2).
+ *
+ * Requires *an* identity but not a full account: a guest token from
+ * `signInAsGuest()` is the intended path for invite-link visitors (§8), so
+ * callers must pass `token` from `authOptions()`.
+ *
+ * Error codes to expect: `INVALID_PASSCODE` (403), `MEETING_FULL` (409),
+ * `MEETING_NOT_JOINABLE` (409, already ended), `MEETING_NOT_FOUND` (404),
+ * `RATE_LIMITED` (429).
+ */
+export function joinMeeting(
+  meetingNumber: string,
+  payload: JoinPayload = {},
+  options?: Omit<RequestOptions, "body" | "method">,
+) {
+  return api.post<JoinResponse>(
+    `/meetings/${encodeURIComponent(meetingNumber)}/join`,
+    payload,
+    options,
+  );
+}
+
