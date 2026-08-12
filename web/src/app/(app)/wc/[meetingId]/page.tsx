@@ -1,12 +1,17 @@
 import type { Metadata } from "next";
-import { RoutePlaceholder } from "@/components/ui/RoutePlaceholder";
-import { formatMeetingId } from "@/lib/utils/format";
+import { MeetingRoom } from "@/components/meeting";
 
 export const metadata: Metadata = { title: "Meeting" };
 
 /**
- * Meeting room, rendered inside the app shell (BLUEPRINT §6.7, P11).
- * Next 16: `params` is async and typed by the global `PageProps` helper.
+ * Meeting room (BLUEPRINT §6.7).
+ *
+ * Renders **inside the app shell** — `(app)/layout.tsx` keeps the rail and top
+ * bar visible and the room is a black card in the content area. That is what
+ * makes it read as the desktop client rather than a bare web page.
+ *
+ * The page itself stays a Server Component and only unwraps `params`; all the
+ * interactivity lives in `MeetingRoom` (§7.2.1).
  */
 export default async function MeetingRoomPage({
   params,
@@ -14,10 +19,8 @@ export default async function MeetingRoomPage({
   const { meetingId } = await params;
 
   return (
-    <RoutePlaceholder
-      route={`/wc/${formatMeetingId(meetingId)}`}
-      title="Meeting Room"
-      phase="P11"
-    />
+    <div className="h-full min-h-0 p-2">
+      <MeetingRoom meetingNumber={meetingId} />
+    </div>
   );
 }

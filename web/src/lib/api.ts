@@ -231,6 +231,7 @@ export function health(options?: Omit<RequestOptions, "body" | "method">) {
 /* -------------------------------------------------------------------------- */
 
 import type {
+  ChatMessage,
   JoinPayload,
   JoinResponse,
   Meeting,
@@ -368,5 +369,50 @@ export function joinMeeting(
     payload,
     options,
   );
+}
+
+/**
+ * `GET /meetings/{number}/messages` — chat history (§4, §6.7).
+ *
+ * The room loads this once on join so the drawer opens with the conversation
+ * already in it; live messages arrive over the socket as `chat.message`
+ * thereafter. Persisting server-side is what makes history survive a refresh.
+ */
+export function listMessages(
+  meetingNumber: string,
+  options?: Omit<RequestOptions, "body" | "method">,
+) {
+  return api.get<ChatMessage[]>(
+    `/meetings/${encodeURIComponent(meetingNumber)}/messages`,
+    options,
+  );
+}
+
+/**
+ * Base URL of the signaling WebSocket (§1.2, §5.2).
+ *
+ * Derived from `API_BASE_URL` rather than configured separately so the two can
+ * never disagree about which host serves a given environment: http -> ws,
+ * https -> wss. `NEXT_PUBLIC_WS_BASE_URL` overrides it for the case where the
+ * socket is genuinely served from another origin (§12.1).
+ */
+export const WS_BASE_URL = (
+  process.env.NEXT_PUBLIC_WS_BASE_URL ??
+  API_BASE_URL.replace(/^http/, "ws")
+).replace(/\/+$/, "");
+
+/**
+ * The `/ws/meeting/{number}?session_id=…` URL (§5.2).
+ *
+ * Mounted at the root, NOT under `/api/v1` — signaling is not part of the
+ * versioned REST surface.
+ */
+export function signalingUrl(
+  meetingNumber: string,
+  sessionId: string,
+): string {
+  return `${WS_BASE_URL}/ws/meeting/${encodeURIComponent(
+    meetingNumber,
+  )}?session_id=${encodeURIComponent(sessionId)}`;
 }
 
