@@ -9,6 +9,14 @@
 const GROUPS = [3, 4, 4] as const;
 
 /**
+ * Group sizes for a 10-digit personal meeting id: 3 + 3 + 4, e.g.
+ * `3835553861` -> `383 555 3861`. Real Zoom PMIs are 10 digits while generated
+ * meeting numbers are 11; both have to render, so the width selects the
+ * grouping. Mirrors `format_meeting_number` in the API.
+ */
+const PMI_GROUPS = [3, 3, 4] as const;
+
+/**
  * Strip every non-digit character from a meeting id.
  * Accepts what a user might paste: `"895 9025 0750"`, `"895-9025-0750"`.
  */
@@ -27,12 +35,17 @@ export function normalizeMeetingId(value: string): string {
 export function formatMeetingId(value: string | number): string {
   const digits = normalizeMeetingId(String(value));
 
-  const expected = GROUPS.reduce((sum, size) => sum + size, 0);
+  const groups =
+    digits.length === PMI_GROUPS.reduce((sum, size) => sum + size, 0)
+      ? PMI_GROUPS
+      : GROUPS;
+
+  const expected = groups.reduce((sum, size) => sum + size, 0);
   if (digits.length !== expected) return digits;
 
   const parts: string[] = [];
   let offset = 0;
-  for (const size of GROUPS) {
+  for (const size of groups) {
     parts.push(digits.slice(offset, offset + size));
     offset += size;
   }

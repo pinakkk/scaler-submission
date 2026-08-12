@@ -16,6 +16,9 @@ from sqlmodel import Session, select
 from app.services.errors import AppError
 
 MEETING_NUMBER_DIGITS: Final = 11
+# Personal meeting ids are 10 digits, as in §3.4's `383 555 3861`. Generated
+# meeting numbers stay 11 (§3.3); only the display grouping differs.
+PMI_DIGITS: Final = 10
 MAX_GENERATION_ATTEMPTS: Final = 5
 
 # Passcode alphabet: mixed case + digits, minus the visually ambiguous
@@ -53,10 +56,19 @@ def generate_meeting_number() -> str:
 
 
 def format_meeting_number(number: str) -> str:
-    """`89590250750` -> `895 9025 0750` (§3.1 display form)."""
-    if len(number) != MEETING_NUMBER_DIGITS:
-        return number
-    return f"{number[:3]} {number[3:7]} {number[7:]}"
+    """`89590250750` -> `895 9025 0750` (§3.1 display form).
+
+    Also groups 10-digit numbers as `### ### ####`. Real Zoom personal meeting
+    ids are 10 digits while generated meeting numbers are 11 — a distinction
+    §3.1/§3.3 collapse, but §3.4's own PMI (`383 555 3861`) is 10, so both
+    widths have to render. Anything else is returned verbatim rather than
+    mis-grouped.
+    """
+    if len(number) == MEETING_NUMBER_DIGITS:
+        return f"{number[:3]} {number[3:7]} {number[7:]}"
+    if len(number) == PMI_DIGITS:
+        return f"{number[:3]} {number[3:6]} {number[6:]}"
+    return number
 
 
 def allocate_meeting_number(
