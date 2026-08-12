@@ -22,6 +22,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.config import settings
 from app.database import init_db, verify_pragmas
 from app.rate_limit import limiter
+from app.realtime import router as realtime_router
 from app.routers import auth as auth_router
 from app.routers import health as health_router
 from app.routers import meetings as meetings_router
@@ -136,6 +137,11 @@ def create_app() -> FastAPI:
     app.include_router(users_router.router, prefix=settings.API_V1_PREFIX)
     app.include_router(meetings_router.router, prefix=settings.API_V1_PREFIX)
     app.include_router(participants_router.router, prefix=settings.API_V1_PREFIX)
+
+    # Signaling (§5.2). Mounted at the root, NOT under /api/v1 — §1.2 and §5.2
+    # both specify `/ws/meeting/{meeting_number}`, and the browser opens it
+    # directly against this host rather than through the versioned REST surface.
+    app.include_router(realtime_router)
 
     return app
 
