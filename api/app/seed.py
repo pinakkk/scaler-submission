@@ -230,7 +230,19 @@ def seed(session: Session) -> dict[str, int]:
         )
 
     # --- 2 upcoming scheduled meetings (§3.4) -------------------------------
+    # §3.4 wants this one "today +3h". A naive `now + 3h` silently rolls into
+    # tomorrow whenever seeding runs after 21:00, which both breaks the spec and
+    # leaves the day strip (§6.2) empty on the very day it is meant to populate.
+    # Clamp to the last half-hour slot that still falls today, keeping it in the
+    # future so the `scheduled_start > now` filter still selects it.
     upcoming_today_start = now + timedelta(hours=3)
+    if upcoming_today_start.date() != now.date():
+        end_of_today = today + timedelta(hours=23, minutes=30)
+        # Only usable if there is still room before midnight; within the last
+        # half hour of the day, fall back to a few minutes out.
+        upcoming_today_start = (
+            end_of_today if end_of_today > now else now + timedelta(minutes=5)
+        )
     meeting, created = _get_or_create_meeting(
         session,
         SEED_MEETING_NUMBERS["upcoming_today"],
