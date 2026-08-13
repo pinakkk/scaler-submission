@@ -12,7 +12,7 @@
     "cf:typegen": "wrangler types",
     "test": "vitest run",
     "test:watch": "vitest",
-    "cf:build": "opennextjs-cloudflare build",
+    "cf:build": "env $(grep -v \"^#\" .env.production | grep . | xargs) opennextjs-cloudflare build",
     "cf:preview": "opennextjs-cloudflare preview",
     "cf:deploy": "opennextjs-cloudflare deploy"
   },

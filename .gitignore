@@ -1,0 +1,18 @@
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment files — never commit real values. Templates are committed
+# explicitly by api/.gitignore and web/.gitignore.
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log

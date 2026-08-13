@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Button, Spinner } from "@/components/ui";
 import { getPreferences } from "@/lib/api";
-import { getToken } from "@/lib/session";
+import { getToken, signIn, signInAsGuest, useSession } from "@/lib/session";
 import type { UserPreferences } from "@/lib/types";
 import { cn } from "@/lib/utils/cn";
 import { requestUserMedia, type MediaError } from "@/lib/webrtc/mediaDevices";
@@ -13,6 +13,8 @@ export interface PreJoinGateProps {
   onJoin: (stream: MediaStream | null) => void;
   /** §6.7 shows a "You are host now." toast behind the modal. */
   isHost: boolean;
+  /** Meeting topic, shown to invite-link visitors so they know where they are. */
+  topic?: string | null;
 }
 
 /**
@@ -23,10 +25,35 @@ export interface PreJoinGateProps {
  * states with a retry, and "Continue without microphone and camera" is always
  * available as an escape hatch. `mediaDevices.toMediaError` does the mapping.
  */
-export function PreJoinGate({ onJoin, isHost }: PreJoinGateProps) {
+export function PreJoinGate({ onJoin, isHost, topic }: PreJoinGateProps) {
   const [error, setError] = useState<MediaError | null>(null);
   const [requesting, setRequesting] = useState(false);
   const [preferences, setPreferences] = useState<UserPreferences | null>(null);
+
+  // Identity step (§8). An invite-link visitor arrives with no token at all, so
+  // the gate asks for a name and mints a guest identity before the media step —
+  // without this, `join` posts anonymously and the API answers UNAUTHENTICATED.
+  const { user } = useSession();
+  const [guestName, setGuestName] = useState("");
+  const [authBusy, setAuthBusy] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+
+  async function continueAsGuest() {
+    const name = guestName.trim();
+    if (!name) {
+      setAuthError("Enter a name so people know who joined.");
+      return;
+    }
+    setAuthBusy(true);
+    setAuthError(null);
+    try {
+      await signInAsGuest(name);
+    } catch {
+      setAuthError("Could not join as a guest. Try again.");
+    } finally {
+      setAuthBusy(false);
+    }
+  }
 
   useEffect(() => {
     const token = getToken();
@@ -98,10 +125,90 @@ export function PreJoinGate({ onJoin, isHost }: PreJoinGateProps) {
           id="prejoin-title"
           className="text-center text-[20px] font-semibold leading-tight text-zm-ink-900"
         >
-          Do you want people to see you in the meeting?
+          {user ? "Do you want people to see you in the meeting?" : "Join meeting"}
         </h1>
 
-        {error && (
+        {!user && (
+          <>
+            {topic && (
+              <p className="mt-2 text-center text-[14px] text-zm-ink-600">{topic}</p>
+            )}
+
+            {authError && (
+              <div
+                role="alert"
+                className={cn(
+                  "mt-5 rounded-[var(--r-md)] border border-zm-warn-border",
+                  "bg-zm-warn-bg px-4 py-3 text-[13px] text-zm-ink-700",
+                )}
+              >
+                {authError}
+              </div>
+            )}
+
+            <div className="mt-6 flex flex-col gap-3">
+              <label
+                htmlFor="prejoin-name"
+                className="text-[13px] font-medium text-zm-ink-700"
+              >
+                Your name
+              </label>
+              <input
+                id="prejoin-name"
+                type="text"
+                value={guestName}
+                maxLength={50}
+                autoFocus
+                onChange={(event) => setGuestName(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") void continueAsGuest();
+                }}
+                placeholder="Enter your name"
+                className={cn(
+                  "h-10 w-full rounded-[var(--r-md)] border border-zm-line px-3",
+                  "text-[14px] text-zm-ink-900 outline-none",
+                  "focus-visible:border-zm-blue-600 focus-visible:ring-2 focus-visible:ring-zm-blue-600/30",
+                )}
+              />
+
+              <Button
+                variant="primary"
+                size="lg"
+                onClick={() => void continueAsGuest()}
+                disabled={authBusy}
+                className="w-full justify-center"
+              >
+                {authBusy ? (
+                  <span className="flex items-center gap-2">
+                    <Spinner size={18} />
+                    Joining…
+                  </span>
+                ) : (
+                  "Join as guest"
+                )}
+              </Button>
+
+              <div className="flex items-center gap-3 py-1">
+                <span className="h-px flex-1 bg-zm-line" aria-hidden="true" />
+                <span className="text-[12px] text-zm-ink-500">or</span>
+                <span className="h-px flex-1 bg-zm-line" aria-hidden="true" />
+              </div>
+
+              {/* Sign-in returns to this exact URL, so the meeting is not lost. */}
+              <Button
+                variant="ghost"
+                size="lg"
+                onClick={() => void signIn()}
+                disabled={authBusy}
+                className="w-full justify-center"
+              >
+                Sign in
+              </Button>
+            </div>
+          </>
+        )}
+
+        {user && error && (
           <div
             role="alert"
             className={cn(
@@ -113,35 +220,37 @@ export function PreJoinGate({ onJoin, isHost }: PreJoinGateProps) {
           </div>
         )}
 
-        <div className="mt-7 flex flex-col gap-3">
-          <Button
-            variant="primary"
-            size="lg"
-            onClick={requestMedia}
-            disabled={requesting}
-            className="w-full justify-center"
-          >
-            {requesting ? (
-              <span className="flex items-center gap-2">
-                <Spinner size={18} />
-                Requesting access…
-              </span>
-            ) : error ? (
-              "Try again"
-            ) : (
-              "Use microphone and camera"
-            )}
-          </Button>
+        {user && (
+          <div className="mt-7 flex flex-col gap-3">
+            <Button
+              variant="primary"
+              size="lg"
+              onClick={requestMedia}
+              disabled={requesting}
+              className="w-full justify-center"
+            >
+              {requesting ? (
+                <span className="flex items-center gap-2">
+                  <Spinner size={18} />
+                  Requesting access…
+                </span>
+              ) : error ? (
+                "Try again"
+              ) : (
+                "Use microphone and camera"
+              )}
+            </Button>
 
-          <Button
-            variant="ghost"
-            size="lg"
-            onClick={() => onJoin(null)}
-            className="w-full justify-center"
-          >
-            Continue without microphone and camera
-          </Button>
-        </div>
+            <Button
+              variant="ghost"
+              size="lg"
+              onClick={() => onJoin(null)}
+              className="w-full justify-center"
+            >
+              Continue without microphone and camera
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );

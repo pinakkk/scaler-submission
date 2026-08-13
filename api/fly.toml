@@ -9,8 +9,9 @@ primary_region = "sin"
   DATABASE_URL = "sqlite:////data/zoom.db"
   ENVIRONMENT = "production"
   PORT = "8080"
-  # Override with the real Workers origin once the frontend is deployed.
-  CORS_ORIGINS = "http://localhost:3000"
+  # The deployed frontend origin. The browser calls this API directly, so any
+  # origin not listed here is blocked by CORS.
+  CORS_ORIGINS = "https://zoom-clone.pinakkundu1080.workers.dev"
 
 # Secrets (never in this file): fly secrets set SECRET_KEY=... GOOGLE_CLIENT_ID=...
 

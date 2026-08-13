@@ -19,7 +19,7 @@ crons = ["*/5 * * * *"]
 
 [vars]
 # Non-secret. Point at the deployed FastAPI health endpoint.
-API_HEALTH_URL = "https://<your-api>.fly.dev/api/v1/health"
+API_HEALTH_URL = "https://zoom-clone-api.fly.dev/api/v1/health"
 
 # Secrets — set with `wrangler secret put <NAME>`, never in this file:
 #   NEXT_PUBLIC_API_BASE_URL

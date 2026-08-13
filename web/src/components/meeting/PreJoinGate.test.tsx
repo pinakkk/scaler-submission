@@ -1,18 +1,37 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PreJoinGate } from "./PreJoinGate";
 
-const { getPreferencesMock, requestUserMediaMock } = vi.hoisted(() => ({
+const {
+  getPreferencesMock,
+  requestUserMediaMock,
+  signInAsGuestMock,
+  signInMock,
+  sessionUser,
+} = vi.hoisted(() => ({
   getPreferencesMock: vi.fn(),
   requestUserMediaMock: vi.fn(),
+  signInAsGuestMock: vi.fn(),
+  signInMock: vi.fn(),
+  sessionUser: { current: null as { id: string; name: string } | null },
 }));
 
 vi.mock("@/lib/api", () => ({ getPreferences: getPreferencesMock }));
-vi.mock("@/lib/session", () => ({ getToken: () => "app-token" }));
+vi.mock("@/lib/session", () => ({
+  getToken: () => "app-token",
+  signIn: signInMock,
+  signInAsGuest: signInAsGuestMock,
+  useSession: () => ({ user: sessionUser.current }),
+}));
 vi.mock("@/lib/webrtc/mediaDevices", () => ({
   requestUserMedia: requestUserMediaMock,
 }));
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  sessionUser.current = { id: "u1", name: "Host" };
+});
 
 describe("PreJoinGate preferences", () => {
   it("uses selected devices and applies mute/video-off before joining", async () => {
@@ -44,5 +63,56 @@ describe("PreJoinGate preferences", () => {
     });
     expect(audioTrack.enabled).toBe(false);
     expect(videoTrack.enabled).toBe(false);
+  });
+});
+
+describe("PreJoinGate guest identity (§8)", () => {
+  beforeEach(() => {
+    sessionUser.current = null;
+  });
+
+  it("offers a name field and guest join instead of the media step", () => {
+    render(<PreJoinGate isHost={false} onJoin={vi.fn()} topic="Design Review" />);
+
+    expect(screen.getByRole("heading", { name: "Join meeting" })).toBeTruthy();
+    expect(screen.getByText("Design Review")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Join as guest" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Sign in" })).toBeTruthy();
+    // The media step must not appear before there is an identity to join with.
+    expect(
+      screen.queryByRole("button", { name: "Use microphone and camera" }),
+    ).toBeNull();
+  });
+
+  it("mints a guest session from the entered name", async () => {
+    signInAsGuestMock.mockResolvedValue({});
+    render(<PreJoinGate isHost={false} onJoin={vi.fn()} />);
+
+    fireEvent.change(screen.getByLabelText("Your name"), {
+      target: { value: "  Pinak's friend  " },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Join as guest" }));
+
+    await waitFor(() =>
+      expect(signInAsGuestMock).toHaveBeenCalledWith("Pinak's friend"),
+    );
+  });
+
+  it("refuses an empty name rather than creating a nameless guest", async () => {
+    render(<PreJoinGate isHost={false} onJoin={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Join as guest" }));
+
+    await waitFor(() => expect(screen.getByRole("alert")).toBeTruthy());
+    expect(signInAsGuestMock).not.toHaveBeenCalled();
+  });
+
+  it("shows the media step once a session exists", () => {
+    sessionUser.current = { id: "g1", name: "Friend" };
+    render(<PreJoinGate isHost={false} onJoin={vi.fn()} />);
+
+    expect(
+      screen.getByRole("button", { name: "Use microphone and camera" }),
+    ).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Join as guest" })).toBeNull();
   });
 });

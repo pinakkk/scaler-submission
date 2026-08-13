@@ -191,18 +191,40 @@ export const useMeetingStore = create<MeetingStore>((set) => ({
     }),
 }));
 
+let orderedCacheParticipants: MeetingStore["participants"] | undefined;
+let orderedCacheSelfId: string | null | undefined;
+let orderedCacheResult: Participant[] = [];
+
 /**
  * Everyone in the room, self first then join order (§6.7's grid ordering).
  * A selector rather than a store field so it cannot drift from `participants`.
+ *
+ * The result is memoized on `participants` identity and `self.id`. This is not
+ * an optimization: `useMeetingStore(selectOrderedParticipants)` compares
+ * snapshots with `Object.is`, so returning a freshly built array on every call
+ * reports a state change on every render and React aborts the component with
+ * "Maximum update depth exceeded" (minified error #185). The store replaces the
+ * `participants` Map on each mutation, so identity is a sound cache key.
  */
 export function selectOrderedParticipants(state: MeetingStore): Participant[] {
+  const selfId = state.self?.id ?? null;
+  if (
+    state.participants === orderedCacheParticipants &&
+    selfId === orderedCacheSelfId
+  ) {
+    return orderedCacheResult;
+  }
+
   const all = [...state.participants.values()];
-  const selfId = state.self?.id;
-  if (!selfId) return all;
-  return [
-    ...all.filter((p) => p.id === selfId),
-    ...all.filter((p) => p.id !== selfId),
-  ];
+  orderedCacheParticipants = state.participants;
+  orderedCacheSelfId = selfId;
+  orderedCacheResult = selfId
+    ? [
+        ...all.filter((p) => p.id === selfId),
+        ...all.filter((p) => p.id !== selfId),
+      ]
+    : all;
+  return orderedCacheResult;
 }
 
 /** §6.7 — the host sees "End Meeting for All"; nobody else does. */

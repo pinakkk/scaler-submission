@@ -109,16 +109,15 @@ name = "<WORKER_NAME>"
 API_HEALTH_URL = "https://<FLY_APP>.fly.dev/api/v1/health"
 ```
 
-`NEXT_PUBLIC_*` values are compiled into the browser bundle, so export them **before** the OpenNext build. They are not secrets.
+`NEXT_PUBLIC_*` values are compiled into the browser bundle, so they must be set **before** the OpenNext build. They are not secrets.
+
+Fill them in `web/.env.production` — `npm run cf:build` loads that file and injects it into the build automatically.
+
+> Do not rely on Next.js to pick the file up on its own: `.env.local` is loaded in every environment except `test` and takes priority over `.env.production`, so an unguarded build would bake in your localhost URLs. The `cf:build` script passes the values as real environment variables, which outrank both files.
 
 ```bash
 cd ../web
 npm ci
-
-export NEXT_PUBLIC_API_BASE_URL='https://<FLY_APP>.fly.dev'
-export NEXT_PUBLIC_WS_BASE_URL='wss://<FLY_APP>.fly.dev'
-export NEXT_PUBLIC_AUTH_MODE='google'
-export NEXTAUTH_URL='https://<WORKER_NAME>.<your-workers-subdomain>.workers.dev'
 
 npm run typecheck
 npm run typecheck:worker

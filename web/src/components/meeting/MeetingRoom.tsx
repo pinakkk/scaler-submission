@@ -1,9 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Spinner, useToast } from "@/components/ui";
-import { ApiError, joinMeeting, listMessages, signalingUrl } from "@/lib/api";
+import {
+  ApiError,
+  joinMeeting,
+  listMessages,
+  lookupMeeting,
+  signalingUrl,
+} from "@/lib/api";
 import { authOptions } from "@/lib/session";
 import { useSettings } from "@/components/settings";
 import { PeerManager } from "@/lib/webrtc/PeerManager";
@@ -42,8 +48,30 @@ export interface MeetingRoomProps {
  */
 export function MeetingRoom({ meetingNumber }: MeetingRoomProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   const { openSettings } = useSettings();
+
+  // §3.2 — the `?pwd=` value from an invite link stands in for the passcode, so
+  // a recipient never has to be told the passcode separately.
+  const inviteToken = searchParams.get("pwd");
+
+  // The topic behind an invite link, for the pre-join gate. `/lookup` is the
+  // one meeting read that needs no identity, which is exactly this case.
+  const [lookupTopic, setLookupTopic] = useState<string | null>(null);
+  useEffect(() => {
+    let current = true;
+    lookupMeeting(meetingNumber)
+      .then((found) => {
+        if (current) setLookupTopic(found.topic ?? null);
+      })
+      .catch(() => {
+        // A failed lookup must not block joining — the gate just shows no topic.
+      });
+    return () => {
+      current = false;
+    };
+  }, [meetingNumber]);
 
   const [phase, setPhase] = useState<Phase>("prejoin");
   const [fatal, setFatal] = useState<string | null>(null);
@@ -231,7 +259,11 @@ export function MeetingRoom({ meetingNumber }: MeetingRoomProps) {
 
       try {
         const auth = authOptions();
-        const joined = await joinMeeting(meetingNumber, {}, auth);
+        const joined = await joinMeeting(
+          meetingNumber,
+          inviteToken ? { invite_token: inviteToken } : {},
+          auth,
+        );
 
         const peers = new PeerManager((to, type, payload) => {
           signalingRef.current?.send({ type: `signal.${type}`, to, payload });
@@ -267,7 +299,7 @@ export function MeetingRoom({ meetingNumber }: MeetingRoomProps) {
         setPhase("error");
       }
     },
-    [handleFrame, meetingNumber, store],
+    [handleFrame, inviteToken, meetingNumber, store],
   );
 
   // --- controls -------------------------------------------------------------
@@ -306,7 +338,15 @@ export function MeetingRoom({ meetingNumber }: MeetingRoomProps) {
   // --- render ---------------------------------------------------------------
 
   if (phase === "prejoin") {
-    return <RoomShell><PreJoinGate isHost={isHost} onJoin={join} /></RoomShell>;
+    return (
+      <RoomShell>
+        <PreJoinGate
+          isHost={isHost}
+          onJoin={join}
+          topic={meeting?.topic ?? lookupTopic}
+        />
+      </RoomShell>
+    );
   }
 
   if (phase === "error") {
@@ -342,7 +382,12 @@ export function MeetingRoom({ meetingNumber }: MeetingRoomProps) {
 
   return (
     <RoomShell>
-      <RoomTopBar title={meeting?.topic ?? "Zoom Meeting"} />
+      <RoomTopBar
+        title={meeting?.topic ?? "Zoom Meeting"}
+        meetingNumber={meetingNumber}
+        inviteToken={meeting?.invite_token ?? inviteToken}
+        passcode={meeting?.passcode}
+      />
 
       {/* The drawers PUSH the grid (§6.7) — this row is the push. */}
       <div className="flex min-h-0 flex-1">
