@@ -1,46 +1,52 @@
 # Zoom Workplace Clone
 
-A full-stack Zoom-inspired video-conferencing application built for the Scaler SDE Fullstack assignment. It supports instant and scheduled meetings, guest invite links, persistent chat, real WebRTC audio/video, host controls, Google OAuth, and a responsive Zoom-style desktop shell.
+A full-stack Zoom-inspired video-conferencing application built for the Scaler SDE Fullstack assignment. Instant and scheduled meetings, guest invite links, persistent chat, real WebRTC audio/video, host controls, Google OAuth, and a responsive Zoom-style desktop shell.
 
-## Links
+## Live
 
-- Source: <https://github.com/pinakkk/scaler-submission>
-- Frontend: _add the Cloudflare Workers URL after deployment_
-- API: _add the Fly.io URL after deployment_
-- Deployment runbook: [`deployment.md`](deployment.md)
+| | |
+|---|---|
+| **App** | <https://zoom-clone.pinakkundu1080.workers.dev> |
+| **API** | <https://zoom-clone-api.fly.dev> |
+| **Health** | <https://zoom-clone-api.fly.dev/api/v1/health> |
+| **Source** | <https://github.com/pinakkk/scaler-submission> |
 
-The repository is deployment-ready, but no live URL is claimed until the account-owned Fly.io and Cloudflare deployment steps have been completed.
+Frontend on Cloudflare Workers (OpenNext), backend on Fly.io (`sin`) with a persistent SQLite volume. Deployment steps: [`deployment.md`](deployment.md).
 
-## Feature checklist
+### Trying it out
 
-- [x] Zoom-style dashboard with profile, account, navigation, and Settings entry points
+Open a meeting and use **Copy invite link** in the room top bar. The link carries `?pwd=<invite_token>`, so the recipient joins by entering a display name — no account and no passcode needed. Signing in with Google is optional and only required to host or schedule.
+
+## Features
+
+- [x] Zoom-style dashboard with profile, account, navigation, and Settings
 - [x] Instant meetings with unique 11-digit IDs, passcodes, and invite links
-- [x] Join by meeting ID or invite URL, including guest display-name entry
+- [x] Join by meeting ID or invite URL, with guest display-name entry
 - [x] Meeting existence and passcode validation without leaking private fields
-- [x] Scheduled meetings with title, description, start time, duration, and timezone
+- [x] Scheduled meetings with title, description, start time, duration, timezone
 - [x] Upcoming/day and previous-meeting views backed by SQLite
-- [x] Demo-ready, idempotent seed data
+- [x] Idempotent seed data
 - [x] WebSocket signaling and full-mesh WebRTC audio/video
 - [x] Persistent in-meeting chat and participant lifecycle
 - [x] Host mute-all, remove-participant, and end-for-all controls
-- [x] Google OAuth with server-side ID-token verification; guest joining remains login-free
+- [x] Google OAuth with server-side ID-token verification; guest joining stays login-free
 - [x] Responsive rail/bottom navigation and meeting grid
-- [x] P14 marketing landing and complete Settings modal (General, Video, Audio, in-meeting Background, About)
+- [x] Marketing landing page and Settings modal (General, Video, Audio, Background, About)
 
 ## Tech stack
 
 | Layer | Technology | Why |
 |---|---|---|
-| Frontend | Next.js 16, React 19, TypeScript | App Router, typed components, server/client boundaries, production bundling |
-| Styling | Tailwind CSS 4 + CSS design tokens | Fast responsive composition with a centralized Zoom-inspired visual system |
+| Frontend | Next.js 16, React 19, TypeScript | App Router, typed components, server/client boundaries |
+| Styling | Tailwind CSS 4 + CSS design tokens | Responsive composition with a centralized visual system |
 | Server state | TanStack Query | Cached REST reads and mutation invalidation |
 | Room state | Zustand | Narrow, high-frequency subscriptions for media/participant state |
-| Authentication | Auth.js v5 + Google OAuth | Standard OAuth callback handling with JWT sessions |
+| Auth | Auth.js v5 + Google OAuth | Standard OAuth callback handling with JWT sessions |
 | API | FastAPI + Pydantic | Typed contracts, dependency injection, async WebSocket support |
-| Data | SQLModel + SQLite WAL | Explicit relational schema in a compact submission-friendly database |
-| Realtime media | WebSocket signaling + WebRTC mesh | Real peer-to-peer media without an out-of-scope SFU |
-| Testing | pytest, Vitest, Testing Library | API/service behavior and frontend utility/component coverage |
-| Hosting | Cloudflare Workers/OpenNext + Fly.io | Edge-hosted Next.js frontend and a persistent Python/SQLite/WebSocket backend |
+| Data | SQLModel + SQLite WAL | Explicit relational schema in a compact database |
+| Realtime | WebSocket signaling + WebRTC mesh | Peer-to-peer media without an out-of-scope SFU |
+| Testing | pytest, Vitest, Testing Library | 217 API tests, 138 frontend tests |
+| Hosting | Cloudflare Workers/OpenNext + Fly.io | Edge frontend, persistent Python/SQLite/WebSocket backend |
 
 ## Architecture
 
@@ -66,7 +72,15 @@ flowchart LR
     C -->|GET /api/v1/health every 5 min| API
 ```
 
-The browser calls FastAPI directly. Next.js does not proxy API traffic, avoiding an extra network hop and preserving WebSocket behavior. Auth.js handles the Google redirect, while FastAPI verifies the Google ID token and issues the bearer token used by all application APIs.
+The browser calls FastAPI directly — Next.js does not proxy API traffic, avoiding an extra hop and preserving WebSocket behavior. Auth.js handles the Google redirect; FastAPI verifies the ID token and issues the bearer token used by all application APIs. A Cloudflare cron pings the health endpoint every 5 minutes so the Fly machine never cold-starts mid-demo.
+
+### Identity model
+
+Three ways in, by design:
+
+1. **Google OAuth** — full account. Can host, schedule, and use host controls.
+2. **Guest** — `POST /auth/guest` mints a real user row with `is_guest=true` and a 4-hour token. Can join and chat; cannot list or schedule meetings (`GUEST_FORBIDDEN`).
+3. **Invite link** — `?pwd=<invite_token>` stands in for the passcode, so a shared URL is self-contained.
 
 ## Database schema
 
@@ -147,17 +161,11 @@ erDiagram
     }
 ```
 
-Important indexes cover meeting-number/invite lookup, host upcoming/recent queries, active participants, and chronological chat. SQLite enables foreign keys, WAL, a 5-second busy timeout, and `synchronous=NORMAL` on every connection.
+Indexes cover meeting-number/invite lookup, host upcoming/recent queries, active participants, and chronological chat. SQLite enables foreign keys, WAL, a 5-second busy timeout, and `synchronous=NORMAL` on every connection.
 
 ## Local setup
 
-### Prerequisites
-
-- macOS/Linux (commands below use a POSIX shell)
-- Python 3.12+
-- Node.js 20+
-- Two modern browsers or browser profiles for multi-peer testing
-- Camera/microphone access for media testing
+Requires Python 3.12+, Node.js 20+, and two browser profiles for multi-peer testing.
 
 ### 1. API
 
@@ -171,7 +179,7 @@ python -m app.seed
 uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-The API is available at <http://localhost:8000>, health at <http://localhost:8000/api/v1/health>, and local OpenAPI docs at <http://localhost:8000/docs>.
+API at <http://localhost:8000>, docs at <http://localhost:8000/docs> (hidden in production).
 
 ### 2. Web
 
@@ -184,68 +192,48 @@ cp .env.example .env.local
 npm run dev
 ```
 
-Open <http://localhost:3000>. The checked-in template uses `NEXT_PUBLIC_AUTH_MODE=dev`, which signs in as the seeded host through a local-only API endpoint. FastAPI disables that endpoint when `ENVIRONMENT=production`.
+Open <http://localhost:3000>. The template ships `NEXT_PUBLIC_AUTH_MODE=dev`, which signs in as the seeded host through a local-only endpoint that FastAPI disables when `ENVIRONMENT=production`.
 
-For real local Google OAuth, set both applications to the same Google Web client:
-
-```dotenv
-# web/.env.local
-AUTH_GOOGLE_ID=<google-web-client-id>
-AUTH_GOOGLE_SECRET=<google-web-client-secret>
-AUTH_SECRET=<openssl-rand-base64-32-output>
-NEXTAUTH_URL=http://localhost:3000
-NEXT_PUBLIC_AUTH_MODE=google
-
-# api/.env
-GOOGLE_CLIENT_ID=<same-google-web-client-id>
-```
-
-Authorize `http://localhost:3000` and `http://localhost:3000/api/auth/callback/google` in Google Cloud Console.
+For real Google OAuth locally, point both apps at the same Google Web client (`AUTH_GOOGLE_ID` in `web/.env.local` must equal `GOOGLE_CLIENT_ID` in `api/.env`), set `NEXT_PUBLIC_AUTH_MODE=google`, and authorize `http://localhost:3000` plus `http://localhost:3000/api/auth/callback/google` in Google Cloud Console.
 
 ### Seed data
 
 ```bash
 cd api
-source .venv/bin/activate
 python -m app.seed          # idempotent top-up
-python -m app.seed --reset  # destructive local reset + reseed
+python -m app.seed --reset  # destructive reset + reseed
 ```
 
-The seed creates one primary host, three secondary users, two upcoming meetings, three ended meetings with chat history, and one live meeting (`955 1203 8847`) for join testing.
+Creates one primary host, three secondary users, upcoming and ended meetings with chat history, and one live meeting (`955 1203 8847`) for join testing.
 
 ### Validation
 
 ```bash
-cd api
-.venv/bin/pytest
-.venv/bin/ruff check app tests
-
-cd ../web
-npm run typecheck
-npm run typecheck:worker
-npm run lint
-npm test -- --run
-npm run build
-npm run cf:build
+cd api && .venv/bin/pytest && .venv/bin/ruff check app tests
+cd ../web && npm run typecheck && npm run lint && npm test -- --run
 ```
 
-For a real media smoke test, open two browser profiles, join the same live meeting, grant media permissions, and verify remote media, mute-all, participant removal, end-for-all, refresh/rejoin, and denied-camera fallback.
+For a media smoke test, open two browser profiles, join the same meeting, and verify remote media, mute-all, participant removal, end-for-all, refresh/rejoin, and denied-camera fallback.
 
 ## Environment variables
+
+Three files, all gitignored. `api/.env` and `web/.env.local` are local; `web/.env.production` feeds the deploy build.
 
 ### API (`api/.env`)
 
 | Variable | Purpose | Local default |
 |---|---|---|
-| `ENVIRONMENT` | Enables local docs/dev auth or production hardening | `local` |
-| `DATABASE_URL` | SQLAlchemy SQLite URL | `sqlite:///./zoom.db` |
+| `ENVIRONMENT` | `local` enables docs and dev auth; `production` hardens both | `local` |
+| `DATABASE_URL` | SQLite URL. Production uses four slashes: `sqlite:////data/zoom.db` | `sqlite:///./zoom.db` |
 | `CORS_ORIGINS` | Comma-separated allowed frontend origins | `http://localhost:3000` |
 | `GOOGLE_CLIENT_ID` | Expected Google ID-token audience | empty for dev auth |
-| `SECRET_KEY` | Signs application JWTs | local generated value recommended |
-| `TURN_URLS`, `TURN_USERNAME`, `TURN_CREDENTIAL` | TURN relay configuration | empty (STUN-only) |
-| `REDIS_URL` | Optional cache backend seam | empty |
+| `SECRET_KEY` | Signs application JWTs | generated per machine |
+| `TURN_URLS`, `TURN_USERNAME`, `TURN_CREDENTIAL` | TURN relay; all three or none | empty (STUN-only) |
+| `REDIS_URL` | Cache backend seam — phase 2, leave empty | empty |
 
-### Web (`web/.env.local`)
+In production these are split: non-secrets live in `api/fly.toml` under `[env]`, secrets are set with `fly secrets set`.
+
+### Web (`web/.env.local` for dev, `web/.env.production` for deploy)
 
 | Variable | Purpose | Local default |
 |---|---|---|
@@ -253,27 +241,26 @@ For a real media smoke test, open two browser profiles, join the same live meeti
 | `NEXT_PUBLIC_WS_BASE_URL` | Signaling WebSocket base URL | `ws://localhost:8000` |
 | `NEXT_PUBLIC_AUTH_MODE` | `dev` locally, `google` in production | `dev` |
 | `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET` | Google OAuth Web client | empty in dev mode |
-| `AUTH_SECRET` | Auth.js JWT encryption/signing secret | generated locally |
+| `AUTH_SECRET` | Auth.js JWT encryption/signing secret | generated per machine |
 | `NEXTAUTH_URL` | Canonical frontend origin | `http://localhost:3000` |
 
-Never commit `.env` or `.env.local`; both are ignored.
+> `NEXT_PUBLIC_*` values are compiled into the browser bundle at build time. Next.js loads `.env.local` in every environment except `test`, and it outranks `.env.production` — so `npm run cf:build` passes `.env.production` as real environment variables, which outrank both files. Without that, a production build silently bakes in localhost URLs.
 
-## Assumptions and design decisions
+## Design decisions
 
-- **Backend on Fly.io rather than Workers:** Cloudflare Workers cannot run this Python FastAPI process or mount the required SQLite file. Fly provides a persistent volume and long-lived WebSockets.
-- **Mesh rather than SFU:** A media server is outside assignment scope. Full mesh gives real audio/video with a deliberate six-participant cap.
-- **Google OAuth is a bonus:** The task allows no-login assumptions, so guest invite links remain fully usable without Google.
-- **Single API process:** WebSocket room state is in-process. Fly and Uvicorn are intentionally restricted to one machine/worker.
-- **Direct API calls:** The browser calls FastAPI using CORS instead of routing through Next.js.
+- **Backend on Fly.io, not Workers.** Cloudflare Workers cannot run a Python FastAPI process or mount SQLite. Fly gives a persistent volume and long-lived WebSockets.
+- **Mesh, not SFU.** A media server is out of scope. Full mesh gives real audio/video with a deliberate six-participant cap.
+- **Guest join is first-class.** The assignment permits no-login assumptions, so invite links work without Google. Guests get real user rows so `participants.user_id` is always populated.
+- **Single API process.** WebSocket room state is in-process; Fly and Uvicorn are pinned to one machine/worker. `min_machines_running = 1` with `auto_stop_machines = false` keeps signaling alive — the machine bills continuously rather than idling to zero.
+- **Direct API calls.** The browser reaches FastAPI over CORS instead of routing through Next.js.
 
 ## Known limitations
 
-- Mesh rooms cap at six participants and upload bandwidth grows with every peer.
-- STUN-only connections fail on some corporate/symmetric-NAT networks; configure TURN before an internet demo.
-- Horizontal API scaling requires moving room coordination to Redis pub/sub or another shared signaling layer.
-- SQLite is appropriate for the single-instance assignment deployment, not a multi-region write workload.
-- Browser media autoplay/device-selection behavior varies; Safari may require additional user gestures.
-- Live deployment and Google OAuth require account-owned credentials and cannot be verified from source alone.
+- **TURN is not configured in production**, so connections are STUN-only. Roughly 15–20% of peer pairs behind symmetric NAT will fail to connect over the internet; same-network testing is unaffected. Set all three `TURN_*` secrets to fix.
+- Mesh rooms cap at six participants; upload bandwidth grows with every peer.
+- Horizontal API scaling requires moving room coordination to Redis pub/sub or a shared signaling layer.
+- SQLite suits this single-instance deployment, not a multi-region write workload.
+- Browser media autoplay and device-selection behavior varies; Safari may need extra user gestures.
 
 ## Repository layout
 
@@ -281,6 +268,6 @@ Never commit `.env` or `.env.local`; both are ignored.
 api/                 FastAPI app, SQLModel models, seed script, tests, Fly config
 web/                 Next.js app, WebRTC client, Auth.js, OpenNext/Worker config
 docs/BLUEPRINT.md    implementation blueprint and acceptance criteria
-deployment.md         Fly.io + Cloudflare + Google OAuth deployment runbook
-TASK.md               original assignment
+deployment.md        Fly.io + Cloudflare + Google OAuth runbook
+TASK.md              original assignment
 ```

@@ -13,6 +13,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import Session
 
+from app.config import settings
 from app.main import app
 from app.models import User, utcnow
 from app.services.auth_service import create_access_token
@@ -207,8 +208,16 @@ def test_a_garbage_token_is_rejected(api: TestClient) -> None:
     assert response.json()["error"]["code"] == "INVALID_TOKEN"
 
 
-def test_google_auth_is_501_without_a_configured_client_id(api: TestClient) -> None:
-    """Verification is real; it simply cannot run without an expected audience."""
+def test_google_auth_is_501_without_a_configured_client_id(
+    api: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Verification is real; it simply cannot run without an expected audience.
+
+    The absent client ID is forced rather than inherited: once a developer fills
+    `GOOGLE_CLIENT_ID` into `api/.env` the ambient settings carry a real value
+    and this case would otherwise silently stop being exercised.
+    """
+    monkeypatch.setattr(settings, "GOOGLE_CLIENT_ID", "")
     response = api.post(f"{API}/auth/google", json={"id_token": "x.y.z"})
     assert response.status_code == 501
     assert response.json()["error"]["code"] == "GOOGLE_AUTH_UNCONFIGURED"
