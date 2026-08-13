@@ -1,29 +1,52 @@
 "use client";
 
 import { useState } from "react";
-import { LogOut, Settings, User } from "lucide-react";
+import { LogIn, LogOut, Settings, User } from "lucide-react";
+
 import { Avatar } from "@/components/ui/Avatar";
 import {
   DropdownMenu,
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from "@/components/ui/DropdownMenu";
+import { useSession } from "@/lib/session";
 
 export interface AccountMenuProps {
-  /** Display name shown in the header and used for the initials fallback. */
-  name: string;
-  email?: string;
-  avatarUrl?: string | null;
+  onOpenSettings?: () => void;
 }
 
 /**
- * Avatar with a green presence dot opening Profile / Settings / Sign out
- * (BLUEPRINT §6.0, OBSERVED §1).
- *
- * All three items are inert in P5 — Settings is P14 and auth is P12.
+ * Current account surface. Signed-out users get the real P12 sign-in action;
+ * signed-in users see their FastAPI profile and can end both app/Auth.js
+ * sessions. Settings is wired by P14.
  */
-export function AccountMenu({ name, email, avatarUrl }: AccountMenuProps) {
+export function AccountMenu({ onOpenSettings }: AccountMenuProps) {
   const [open, setOpen] = useState(false);
+  const [signingIn, setSigningIn] = useState(false);
+  const { user, isLoading, signIn, signOut } = useSession();
+
+  if (!isLoading && !user) {
+    return (
+      <button
+        type="button"
+        disabled={signingIn}
+        onClick={async () => {
+          setSigningIn(true);
+          try {
+            await signIn();
+          } finally {
+            setSigningIn(false);
+          }
+        }}
+        className="inline-flex h-9 items-center gap-2 rounded-full bg-zm-blue-600 px-4 text-[14px] font-medium text-white transition-colors hover:bg-zm-blue-700 disabled:opacity-60"
+      >
+        <LogIn aria-hidden="true" size={16} />
+        {signingIn ? "Signing in…" : "Sign in"}
+      </button>
+    );
+  }
+
+  const name = user?.name ?? "Account";
 
   return (
     <DropdownMenu
@@ -42,10 +65,10 @@ export function AccountMenu({ name, email, avatarUrl }: AccountMenuProps) {
           className="flex items-center rounded-full transition-opacity hover:opacity-90"
         >
           <Avatar
-            src={avatarUrl}
+            src={user?.avatar_url}
             name={name}
             size={36}
-            presence
+            presence={Boolean(user)}
             className="pointer-events-none"
           />
         </button>
@@ -53,8 +76,8 @@ export function AccountMenu({ name, email, avatarUrl }: AccountMenuProps) {
     >
       <div className="px-3 pt-1 pb-2">
         <p className="truncate text-[14px] font-semibold text-zm-ink-900">{name}</p>
-        {email ? (
-          <p className="truncate text-[12px] text-zm-ink-400">{email}</p>
+        {user?.email ? (
+          <p className="truncate text-[12px] text-zm-ink-400">{user.email}</p>
         ) : null}
       </div>
 
@@ -63,13 +86,26 @@ export function AccountMenu({ name, email, avatarUrl }: AccountMenuProps) {
       <DropdownMenuItem icon={<User aria-hidden="true" size={16} />}>
         Profile
       </DropdownMenuItem>
-      <DropdownMenuItem icon={<Settings aria-hidden="true" size={16} />}>
+      <DropdownMenuItem
+        icon={<Settings aria-hidden="true" size={16} />}
+        onClick={() => {
+          setOpen(false);
+          onOpenSettings?.();
+        }}
+      >
         Settings
       </DropdownMenuItem>
 
       <DropdownMenuSeparator />
 
-      <DropdownMenuItem destructive icon={<LogOut aria-hidden="true" size={16} />}>
+      <DropdownMenuItem
+        destructive
+        icon={<LogOut aria-hidden="true" size={16} />}
+        onClick={() => {
+          setOpen(false);
+          signOut();
+        }}
+      >
         Sign out
       </DropdownMenuItem>
     </DropdownMenu>

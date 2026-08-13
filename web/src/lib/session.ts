@@ -2,10 +2,8 @@
  * Client-side identity: token storage, sign-in, and the current user.
  *
  * BLUEPRINT §8 — hosts sign in with Google, joiners may enter as guests with a
- * display name. Google OAuth itself lands in P12; until then `signInAsDev()`
- * mints a token for the seeded host via the API's local-only `/auth/dev` route.
- * The rest of this module is the permanent surface — P12 replaces one function,
- * not the callers.
+ * display name. Auth.js owns the Google redirect/callback while FastAPI verifies
+ * the ID token and issues the app bearer token synchronized below.
  *
  * Everything here is browser-only. Server Components must not import it; pages
  * that need identity are `"use client"` and read it through `useSession()`.
@@ -13,13 +11,18 @@
 
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
+import {
+  signIn as authJsSignIn,
+  signOut as authJsSignOut,
+} from "next-auth/react";
 
 import { api, ApiError } from "@/lib/api";
 import type { User } from "@/lib/types";
 
 const TOKEN_KEY = "zm.auth.token";
 const USER_KEY = "zm.auth.user";
+const AUTH_MODE = process.env.NEXT_PUBLIC_AUTH_MODE ?? "dev";
 
 /** `POST /auth/*` response shape (§4). */
 export interface TokenResponse {
@@ -81,10 +84,30 @@ export function getUser(): User | null {
   }
 }
 
+let cachedSessionToken: string | null | undefined;
+let cachedSessionUserRaw: string | null | undefined;
+let cachedSession: Session | null = null;
+
 export function getSession(): Session | null {
-  const token = getToken();
-  const user = getUser();
-  return token && user ? { token, user } : null;
+  const token = readStorage(TOKEN_KEY);
+  const userRaw = readStorage(USER_KEY);
+  if (token === cachedSessionToken && userRaw === cachedSessionUserRaw) {
+    return cachedSession;
+  }
+
+  cachedSessionToken = token;
+  cachedSessionUserRaw = userRaw;
+  if (!token || !userRaw) {
+    cachedSession = null;
+    return cachedSession;
+  }
+
+  try {
+    cachedSession = { token, user: JSON.parse(userRaw) as User };
+  } catch {
+    cachedSession = null;
+  }
+  return cachedSession;
 }
 
 /** Persist a session and notify every `useSession()` subscriber. */
@@ -153,9 +176,8 @@ export async function signInAsGuest(displayName: string): Promise<Session> {
 /**
  * Sign in as the seeded host, no credentials — local development only.
  *
- * **This is the P12 seam.** When Google OAuth lands, `signIn()` below switches
- * from this to the Auth.js flow and nothing else in the app changes. The API
- * refuses this route when `ENVIRONMENT=production`.
+ * Retained as an explicit local mode. The API refuses this route when
+ * `ENVIRONMENT=production`; deployed builds use Auth.js + Google instead.
  */
 export async function signInAsDev(email?: string): Promise<Session> {
   const res = await api.post<TokenResponse>("/auth/dev", { email: email ?? null });
@@ -166,16 +188,20 @@ export async function signInAsDev(email?: string): Promise<Session> {
 /**
  * The host sign-in entry point every caller should use.
  *
- * Currently delegates to the dev path; P12 repoints it at Google OAuth. Call
- * this from "Sign In" buttons rather than `signInAsDev` directly, so the
- * swap is a one-line change here.
+ * Production starts Google OAuth through Auth.js. Local development explicitly
+ * opts into the seeded-user path so contributors do not need shared OAuth
+ * credentials; `/auth/dev` is disabled by FastAPI in production.
  */
-export async function signIn(): Promise<Session> {
-  return signInAsDev();
+export async function signIn(): Promise<Session | void> {
+  if (AUTH_MODE === "dev") return signInAsDev();
+  await authJsSignIn("google", { redirectTo: "/home" });
 }
 
 export function signOut(): void {
   clearSession();
+  if (AUTH_MODE !== "dev") {
+    void authJsSignOut({ redirect: false });
+  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -233,31 +259,18 @@ export interface UseSessionResult {
 }
 
 /**
- * Read the current session in a client component.
- *
- * Starts as `null`/`isLoading` on the server and during the first paint, then
- * settles from localStorage in an effect — reading storage during render would
- * produce a hydration mismatch.
+ * Subscribe to the external localStorage-backed session without hydration
+ * mismatches. The server snapshot is signed-out; React refreshes from storage
+ * immediately after hydration and on every local/cross-tab change.
  */
 export function useSession(): UseSessionResult {
-  const [session, setLocalSession] = useState<Session | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  const sync = useCallback(() => {
-    setLocalSession(getSession());
-  }, []);
-
-  useEffect(() => {
-    sync();
-    setIsLoading(false);
-    return subscribe(sync);
-  }, [sync]);
+  const session = useSyncExternalStore(subscribe, getSession, () => null);
 
   return {
     session,
     user: session?.user ?? null,
     token: session?.token ?? null,
-    isLoading,
+    isLoading: false,
     signIn,
     signInAsGuest,
     signOut,

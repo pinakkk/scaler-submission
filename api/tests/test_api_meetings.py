@@ -214,6 +214,35 @@ def test_google_auth_is_501_without_a_configured_client_id(api: TestClient) -> N
     assert response.json()["error"]["code"] == "GOOGLE_AUTH_UNCONFIGURED"
 
 
+def test_verified_google_identity_is_exchanged_for_an_app_session(
+    api: TestClient, host: User, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """P12 callback contract without making a network request to Google's JWKS."""
+    from app.services import auth_service
+
+    claims = {
+        "sub": "google-user-123",
+        "email": host.email,
+        "name": "OAuth Host",
+        "picture": "https://example.com/avatar.png",
+        "iss": "https://accounts.google.com",
+    }
+    monkeypatch.setattr(auth_service, "verify_google_id_token", lambda _token: claims)
+
+    response = api.post(f"{API}/auth/google", json={"id_token": "verified-by-google"})
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["access_token"]
+    assert body["user"]["id"] == host.id
+    assert body["user"]["name"] == "OAuth Host"
+    assert body["user"]["is_guest"] is False
+    assert api.get(
+        f"{API}/users/me",
+        headers={"Authorization": f"Bearer {body['access_token']}"},
+    ).status_code == 200
+
+
 # --- Join over HTTP ----------------------------------------------------------
 
 

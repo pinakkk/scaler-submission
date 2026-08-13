@@ -31,11 +31,7 @@ export function AppTopBar() {
           Upgrade
         </button>
 
-        <AccountMenu
-          name="Pinak Kundu"
-          email="pinak@example.com"
-          avatarUrl={null}
-        />
+        <AccountMenu />
       </div>
     </header>
   );
