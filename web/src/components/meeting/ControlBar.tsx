@@ -1,6 +1,7 @@
 "use client";
 
 import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from "react";
+import { Settings } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import {
   ChatIcon,
@@ -94,6 +95,7 @@ export interface ControlBarProps {
   onToggleParticipants: () => void;
   onToggleChat: () => void;
   onOpenHostTools: () => void;
+  onOpenSettings: () => void;
   onOpenMore: () => void;
   /** Rendered by the parent so the End popover can anchor to its button. */
   endSlot: ReactNode;
@@ -117,6 +119,7 @@ export function ControlBar({
   onToggleVideo,
   onToggleParticipants,
   onToggleChat,
+  onOpenSettings,
   endSlot,
   hostToolsSlot,
   moreSlot,
@@ -160,6 +163,11 @@ export function ControlBar({
       {/* OBSERVED §7 — a thin divider separates the host/settings group. */}
       <span className="mx-2 h-8 w-px bg-white/15" aria-hidden="true" />
 
+      <ControlButton
+        icon={<Settings className="h-5 w-5" />}
+        label="Settings"
+        onClick={onOpenSettings}
+      />
       {moreSlot ?? null}
       {endSlot}
     </div>

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { RoutePlaceholder } from "@/components/ui/RoutePlaceholder";
+import { MarketingLanding } from "@/components/marketing/MarketingLanding";
 
 export const metadata: Metadata = {
   title: "Zoom Workplace — Video Meetings",
@@ -10,9 +10,5 @@ export const metadata: Metadata = {
  * Signed-in users will redirect to `/home` once auth lands in P12.
  */
 export default function MarketingLandingPage() {
-  return (
-    <main className="min-h-screen bg-zm-app-card">
-      <RoutePlaceholder route="/" title="Marketing Landing" phase="P14" />
-    </main>
-  );
+  return <MarketingLanding />;
 }

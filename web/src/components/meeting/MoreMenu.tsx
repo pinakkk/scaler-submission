@@ -17,6 +17,7 @@ export interface MoreMenuProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   incomingVideoStopped: boolean;
+  onOpenSettings: () => void;
   onToggleIncomingVideo: () => void;
 }
 
@@ -24,6 +25,7 @@ export function MoreMenu({
   open,
   onOpenChange,
   incomingVideoStopped,
+  onOpenSettings,
   onToggleIncomingVideo,
 }: MoreMenuProps) {
   return (
@@ -46,7 +48,7 @@ export function MoreMenu({
       <div className="grid grid-cols-3 gap-2">
         <GridItem label="Breakout Rooms" disabled />
         <GridItem label="Whiteboards" disabled />
-        <GridItem label="Settings" disabled />
+        <GridItem label="Settings" onClick={onOpenSettings} />
       </div>
 
       <button
@@ -69,11 +71,12 @@ export function MoreMenu({
   );
 }
 
-function GridItem({ label, disabled }: { label: string; disabled?: boolean }) {
+function GridItem({ label, disabled, onClick }: { label: string; disabled?: boolean; onClick?: () => void }) {
   return (
     <button
       type="button"
       disabled={disabled}
+      onClick={onClick}
       className={cn(
         "flex h-[72px] w-full flex-col items-center justify-center gap-1.5",
         "rounded-[var(--r-md)] px-1 text-center text-[11px] leading-tight",

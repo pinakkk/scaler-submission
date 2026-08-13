@@ -9,6 +9,24 @@ export type UserPlan = "basic" | "pro";
 export type Encryption = "enhanced" | "e2ee";
 export type ThemeName = "classic" | "bloom" | "agave" | "rose";
 
+export interface UserPreferences {
+  user_id: string;
+  theme: ThemeName;
+  mute_on_join: boolean;
+  video_off_on_join: boolean;
+  gallery_size: 9 | 25;
+  mirror_video: boolean;
+  always_show_controls: boolean;
+  audio_input_id: string | null;
+  audio_output_id: string | null;
+  video_input_id: string | null;
+  updated_at: string;
+}
+
+export type UserPreferencesUpdate = Partial<
+  Omit<UserPreferences, "user_id" | "updated_at">
+>;
+
 export interface User {
   id: string;
   email: string;

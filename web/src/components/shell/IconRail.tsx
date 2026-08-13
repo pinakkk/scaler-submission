@@ -11,6 +11,7 @@ import {
   Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
+import { useSettings } from "@/components/settings";
 import { MoreFlyout } from "./MoreFlyout";
 
 type Glyph = ComponentType<{
@@ -60,6 +61,7 @@ const LABEL_CLASSES = cn(
 
 export function IconRail({ className }: { className?: string }) {
   const pathname = usePathname();
+  const { openSettings } = useSettings();
   const moreButtonRef = useRef<HTMLButtonElement | null>(null);
 
   // Navigating away should never leave the flyout hanging open. The path it was
@@ -137,10 +139,11 @@ export function IconRail({ className }: { className?: string }) {
         )}
       />
 
-      {/* Settings gear, pinned bottom (§2.9). No-op until P14. */}
+      {/* Settings gear, pinned bottom (§2.9). */}
       <button
         type="button"
         aria-label="Settings"
+        onClick={() => openSettings("light")}
         className={cn(
           "flex flex-col items-center justify-center gap-[var(--zm-rail-gap)] rounded-[var(--r-md)] text-zm-ink-500 transition-colors hover:bg-zm-rail-hover",
           // On the bottom tab bar it matches the other tabs: glyph over label.

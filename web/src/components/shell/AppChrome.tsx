@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { SettingsProvider } from "@/components/settings";
 import { ToastProvider } from "@/components/ui/Toast";
 import { AppTopBar } from "./AppTopBar";
 import { ContentCard } from "./ContentCard";
@@ -34,6 +35,7 @@ import { Wordmark } from "./Wordmark";
 export function AppChrome({ children }: { children: ReactNode }) {
   return (
     <ToastProvider>
+      <SettingsProvider>
       <div className="flex h-dvh flex-col overflow-hidden bg-zm-app-chrome">
         {/* Black OS title strip (§2.9). Decorative — not exposed to AT. */}
         <div
@@ -61,6 +63,7 @@ export function AppChrome({ children }: { children: ReactNode }) {
           </div>
         </div>
       </div>
+      </SettingsProvider>
     </ToastProvider>
   );
 }

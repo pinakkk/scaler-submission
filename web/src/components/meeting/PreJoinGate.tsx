@@ -1,7 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button, Spinner } from "@/components/ui";
+import { getPreferences } from "@/lib/api";
+import { getToken } from "@/lib/session";
+import type { UserPreferences } from "@/lib/types";
 import { cn } from "@/lib/utils/cn";
 import { requestUserMedia, type MediaError } from "@/lib/webrtc/mediaDevices";
 
@@ -23,12 +26,43 @@ export interface PreJoinGateProps {
 export function PreJoinGate({ onJoin, isHost }: PreJoinGateProps) {
   const [error, setError] = useState<MediaError | null>(null);
   const [requesting, setRequesting] = useState(false);
+  const [preferences, setPreferences] = useState<UserPreferences | null>(null);
+
+  useEffect(() => {
+    const token = getToken();
+    if (!token) return;
+    let current = true;
+    getPreferences({ token })
+      .then((value) => {
+        if (current) setPreferences(value);
+      })
+      .catch(() => {
+        // Joining must remain available when preferences cannot be loaded.
+      });
+    return () => {
+      current = false;
+    };
+  }, []);
 
   async function requestMedia() {
     setRequesting(true);
     setError(null);
     try {
-      onJoin(await requestUserMedia({ audio: true, video: true }));
+      const stream = await requestUserMedia({
+        audio: preferences?.audio_input_id
+          ? { deviceId: { exact: preferences.audio_input_id } }
+          : true,
+        video: preferences?.video_input_id
+          ? { deviceId: { exact: preferences.video_input_id } }
+          : true,
+      });
+      for (const track of stream.getAudioTracks()) {
+        track.enabled = !preferences?.mute_on_join;
+      }
+      for (const track of stream.getVideoTracks()) {
+        track.enabled = !preferences?.video_off_on_join;
+      }
+      onJoin(stream);
     } catch (caught) {
       setError(caught as MediaError);
     } finally {

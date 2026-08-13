@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Spinner, useToast } from "@/components/ui";
 import { ApiError, joinMeeting, listMessages, signalingUrl } from "@/lib/api";
 import { authOptions } from "@/lib/session";
+import { useSettings } from "@/components/settings";
 import { PeerManager } from "@/lib/webrtc/PeerManager";
 import { SignalingClient } from "@/lib/webrtc/SignalingClient";
 import { stopStream } from "@/lib/webrtc/mediaDevices";
@@ -42,6 +43,7 @@ export interface MeetingRoomProps {
 export function MeetingRoom({ meetingNumber }: MeetingRoomProps) {
   const router = useRouter();
   const { toast } = useToast();
+  const { openSettings } = useSettings();
 
   const [phase, setPhase] = useState<Phase>("prejoin");
   const [fatal, setFatal] = useState<string | null>(null);
@@ -55,6 +57,7 @@ export function MeetingRoom({ meetingNumber }: MeetingRoomProps) {
   const signalingRef = useRef<SignalingClient | null>(null);
   const peersRef = useRef<PeerManager | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
+  const initialMediaRef = useRef({ isMuted: false, isVideoOn: true });
   const selfIdRef = useRef<string | null>(null);
 
   const meeting = useMeetingStore((s) => s.meeting);
@@ -118,6 +121,20 @@ export function MeetingRoom({ meetingNumber }: MeetingRoomProps) {
             snapshot.you,
             snapshot.participants,
           );
+          const initial = initialMediaRef.current;
+          state.setMuted(initial.isMuted);
+          state.setVideoOn(initial.isVideoOn);
+          state.patchParticipant(snapshot.you.id, {
+            is_muted: initial.isMuted,
+            is_video_on: initial.isVideoOn,
+          });
+          signalingRef.current?.send({
+            type: "state.update",
+            payload: {
+              is_muted: initial.isMuted,
+              is_video_on: initial.isVideoOn,
+            },
+          });
           selfIdRef.current = snapshot.you.id;
 
           // §5.6 — reconcile rather than assume peer connections survived. Every
@@ -199,6 +216,17 @@ export function MeetingRoom({ meetingNumber }: MeetingRoomProps) {
     async (stream: MediaStream | null) => {
       setPhase("joining");
       localStreamRef.current = stream;
+      initialMediaRef.current = {
+        isMuted:
+          !stream ||
+          stream.getAudioTracks().length === 0 ||
+          stream.getAudioTracks().every((track) => !track.enabled),
+        isVideoOn:
+          Boolean(stream?.getVideoTracks().length) &&
+          Boolean(stream?.getVideoTracks().some((track) => track.enabled)),
+      };
+      store.getState().setMuted(initialMediaRef.current.isMuted);
+      store.getState().setVideoOn(initialMediaRef.current.isVideoOn);
       store.getState().setLocalStream(stream);
 
       try {
@@ -360,6 +388,7 @@ export function MeetingRoom({ meetingNumber }: MeetingRoomProps) {
         onToggleParticipants={() => store.getState().togglePanel("participants")}
         onToggleChat={() => store.getState().togglePanel("chat")}
         onOpenHostTools={() => setHostToolsOpen(true)}
+        onOpenSettings={() => openSettings("dark")}
         onOpenMore={() => setMoreOpen(true)}
         hostToolsSlot={
           <HostToolsMenu
@@ -374,6 +403,10 @@ export function MeetingRoom({ meetingNumber }: MeetingRoomProps) {
             open={moreOpen}
             onOpenChange={setMoreOpen}
             incomingVideoStopped={incomingVideoStopped}
+            onOpenSettings={() => {
+              setMoreOpen(false);
+              openSettings("dark");
+            }}
             onToggleIncomingVideo={() => {
               setIncomingVideoStopped((stopped) => !stopped);
               setMoreOpen(false);

@@ -207,3 +207,20 @@
     background-image: var(--zm-hero-gradient);
   }
 }
+
+/* P14 persisted theme preference. Classic remains the exact default palette;
+   the alternatives tint app chrome while preserving contrast and room colors. */
+:root[data-zoom-theme="bloom"] {
+  --color-zm-app-chrome: #e8edff;
+  --color-zm-search-bg: #d8e1ff;
+}
+
+:root[data-zoom-theme="agave"] {
+  --color-zm-app-chrome: #e5eeeb;
+  --color-zm-search-bg: #d4e2dd;
+}
+
+:root[data-zoom-theme="rose"] {
+  --color-zm-app-chrome: #f2e7eb;
+  --color-zm-search-bg: #e6d6dc;
+}

@@ -25,7 +25,7 @@ The repository is deployment-ready, but no live URL is claimed until the account
 - [x] Host mute-all, remove-participant, and end-for-all controls
 - [x] Google OAuth with server-side ID-token verification; guest joining remains login-free
 - [x] Responsive rail/bottom navigation and meeting grid
-- [ ] P14 marketing landing and complete Settings modal
+- [x] P14 marketing landing and complete Settings modal (General, Video, Audio, in-meeting Background, About)
 
 ## Tech stack
 

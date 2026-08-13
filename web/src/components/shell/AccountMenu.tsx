@@ -10,6 +10,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/DropdownMenu";
 import { useSession } from "@/lib/session";
+import { useSettings } from "@/components/settings";
 
 export interface AccountMenuProps {
   onOpenSettings?: () => void;
@@ -23,6 +24,7 @@ export interface AccountMenuProps {
 export function AccountMenu({ onOpenSettings }: AccountMenuProps) {
   const [open, setOpen] = useState(false);
   const [signingIn, setSigningIn] = useState(false);
+  const { openSettings } = useSettings();
   const { user, isLoading, signIn, signOut } = useSession();
 
   if (!isLoading && !user) {
@@ -90,7 +92,8 @@ export function AccountMenu({ onOpenSettings }: AccountMenuProps) {
         icon={<Settings aria-hidden="true" size={16} />}
         onClick={() => {
           setOpen(false);
-          onOpenSettings?.();
+          if (onOpenSettings) onOpenSettings();
+          else openSettings("light");
         }}
       >
         Settings

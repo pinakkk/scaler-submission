@@ -226,6 +226,21 @@ export function health(options?: Omit<RequestOptions, "body" | "method">) {
   return api.get<HealthResponse>("/health", options);
 }
 
+/** Current user's persisted P14 Settings values. */
+export function getPreferences(
+  options?: Omit<RequestOptions, "body" | "method">,
+) {
+  return api.get<UserPreferences>("/users/me/preferences", options);
+}
+
+/** Upsert one or more real Settings values. */
+export function updatePreferences(
+  payload: UserPreferencesUpdate,
+  options?: Omit<RequestOptions, "body" | "method">,
+) {
+  return api.put<UserPreferences>("/users/me/preferences", payload, options);
+}
+
 /* -------------------------------------------------------------------------- */
 /*  Meeting endpoints (§4, P6+)                                               */
 /* -------------------------------------------------------------------------- */
@@ -239,6 +254,8 @@ import type {
   MeetingListResponse,
   MeetingLookup,
   MeetingUpdatePayload,
+  UserPreferences,
+  UserPreferencesUpdate,
 } from "@/lib/types";
 
 export type MeetingFilter = "upcoming" | "recent" | "day" | "all";
