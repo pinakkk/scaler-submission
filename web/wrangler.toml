@@ -5,7 +5,7 @@
 
 name = "zoom-clone"
 main = "src/worker.ts"
-compatibility_date = "2025-03-01"
+compatibility_date = "2026-08-13"
 compatibility_flags = ["nodejs_compat"]
 
 [assets]

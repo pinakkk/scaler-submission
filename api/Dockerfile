@@ -1,8 +1,6 @@
-# Python 3.13-slim: the newest slim tag with wheels for every pinned dependency.
-# Blueprint §12.2 says 3.12; we develop on 3.14 and every dep ships cp314 wheels,
-# so 3.13 is the closest widely-available image to the dev environment. Any of
-# 3.12/3.13/3.14 works — what matters is not silently diverging from what was tested.
-FROM python:3.13-slim
+# Python 3.12 matches the blueprint/runtime floor and has wheels for every
+# pinned dependency. Keep the production image aligned with requires-python.
+FROM python:3.12-slim
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -12,7 +10,7 @@ ENV PYTHONUNBUFFERED=1 \
 WORKDIR /app
 
 # Dependency layer first so app edits don't invalidate the pip cache.
-COPY pyproject.toml ./
+COPY pyproject.toml README.md ./
 COPY app ./app
 RUN pip install --no-cache-dir .
 
