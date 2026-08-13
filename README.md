@@ -147,7 +147,7 @@ erDiagram
       datetime invited_at
     }
     USER_PREFERENCES {
-      string user_id PK_FK
+      string user_id PK, FK
       string theme
       boolean mute_on_join
       boolean video_off_on_join
